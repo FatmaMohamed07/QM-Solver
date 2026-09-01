@@ -194,7 +194,6 @@
             font-weight: bold;
         }
 
-        /* Professional Print & PDF Output Styling */
         @media print {
             body {
                 background-color: #ffffff !important;
@@ -328,7 +327,16 @@
             return num.toString(2).padStart(length, '0');
         }
 
+        function countOnes(str) {
+            let count = 0;
+            for (let char of str) {
+                if (char === '1') count++;
+            }
+            return count;
+        }
+
         function differByOne(s1, s2) {
+            if (s1.length !== s2.length) return { isOne: false, index: -1 };
             let diffCount = 0;
             let diffIndex = -1;
             for (let i = 0; i < s1.length; i++) {
@@ -349,13 +357,13 @@
                     if (binaryStr[i] === '1') resultParts.push(varNames[i]);
                     else if (binaryStr[i] === '0') resultParts.push(varNames[i] + "'");
                 }
-                return resultParts.join('');
+                return resultParts.join('') || '1';
             } else { // POS
                 for (let i = 0; i < binaryStr.length; i++) {
                     if (binaryStr[i] === '0') resultParts.push(varNames[i]);
                     else if (binaryStr[i] === '1') resultParts.push(varNames[i] + "'");
                 }
-                return '(' + resultParts.join(' + ') + ')';
+                return resultParts.length > 0 ? '(' + resultParts.join(' + ') + ')' : '(0)';
             }
         }
 
@@ -450,7 +458,6 @@
             
             let grayCode2 = ['00', '01', '11', '10'];
             let grayCode1 = ['0', '1'];
-
             let rowGray, colGray, rowVars, colVars;
 
             if (varCount === 2) { 
@@ -495,7 +502,6 @@
             });
 
             html += `</table></div>`;
-
             html += `<div style="margin-top: 15px;"><strong>Detected Implicant Groups (Clusters):</strong>`;
             selectedPIs.forEach((pi, index) => {
                 let expr = binaryToExpression(pi.binary, formType);
@@ -505,6 +511,36 @@
             });
             html += `</div></div>`;
 
+            return html;
+        }
+
+        function renderGroupedTable(items, title) {
+            let groups = {};
+            items.forEach(item => {
+                let ones = countOnes(item.binary);
+                if (!groups[ones]) groups[ones] = [];
+                groups[ones].push(item);
+            });
+
+            let sortedKeys = Object.keys(groups).map(Number).sort((a,b)=>a-b);
+
+            let html = `<div class="table-step"><h4>${title}</h4>`;
+            html += `<table><tr><th>Group (No. of 1s)</th><th>Terms</th><th>Binary Representation</th><th>Used</th></tr>`;
+
+            sortedKeys.forEach(k => {
+                groups[k].forEach((item, idx) => {
+                    // تعديل الترقيم لي يبدأ الجروب من 1 بدلاً من 0 (أي Group (k+1))
+                    let groupCell = (idx === 0) ? `<td rowspan="${groups[k].length}" style="font-weight:bold; background:rgba(0,0,0,0.03);">Group ${k + 1}</td>` : '';
+                    html += `<tr>
+                        ${groupCell}
+                        <td>${item.minterms.join(',')}</td>
+                        <td><code>${item.binary}</code></td>
+                        <td>${item.used ? '✓' : ''}</td>
+                    </tr>`;
+                });
+            });
+
+            html += `</table></div>`;
             return html;
         }
 
@@ -542,38 +578,44 @@
             let htmlContent = `<h3>Step-by-Step Solution (${formType}):</h3>`;
             let primeImplicants = [];
 
-            htmlContent += `<div class="table-step"><h4>First Group</h4>`;
-            htmlContent += `<table><tr><th>Terms</th><th>Binary Representation</th></tr>`;
-            currentTable.forEach(item => {
-                htmlContent += `<tr><td>${item.minterms.join(',')}</td><td>${item.binary}</td></tr>`;
-            });
-            htmlContent += `</table></div>`;
+            htmlContent += renderGroupedTable(currentTable, "First Column (Grouped by number of 1s)");
 
             let iterationCount = 1;
 
-            while (currentTable.length > 0) {
+            while (true) {
                 let nextTableMap = new Map();
+                let groups = {};
+                
+                currentTable.forEach(item => {
+                    let ones = countOnes(item.binary);
+                    if (!groups[ones]) groups[ones] = [];
+                    groups[ones].push(item);
+                });
 
-                for (let i = 0; i < currentTable.length; i++) {
-                    for (let j = i + 1; j < currentTable.length; j++) {
-                        let t1 = currentTable[i];
-                        let t2 = currentTable[j];
-                        let check = differByOne(t1.binary, t2.binary);
-                        
-                        if (check.isOne) {
-                            t1.used = true;
-                            t2.used = true;
-                            let newBinary = t1.binary.split('');
-                            newBinary[check.index] = '-';
-                            newBinary = newBinary.join('');
-                            let combinedMinterms = Array.from(new Set([...t1.minterms, ...t2.minterms])).sort((a,b)=>a-b);
-                            let key = combinedMinterms.join(',');
-                            
-                            if (!nextTableMap.has(key)) {
-                                nextTableMap.set(key, { minterms: combinedMinterms, binary: newBinary, used: false });
+                let groupKeys = Object.keys(groups).map(Number).sort((a,b)=>a-b);
+
+                for (let i = 0; i < groupKeys.length - 1; i++) {
+                    let g1 = groups[groupKeys[i]];
+                    let g2 = groups[groupKeys[i+1]];
+
+                    g1.forEach(t1 => {
+                        g2.forEach(t2 => {
+                            let check = differByOne(t1.binary, t2.binary);
+                            if (check.isOne) {
+                                t1.used = true;
+                                t2.used = true;
+                                let newBinary = t1.binary.split('');
+                                newBinary[check.index] = '-';
+                                newBinary = newBinary.join('');
+                                let combinedMinterms = Array.from(new Set([...t1.minterms, ...t2.minterms])).sort((a,b)=>a-b);
+                                let key = combinedMinterms.join(',');
+
+                                if (!nextTableMap.has(key)) {
+                                    nextTableMap.set(key, { minterms: combinedMinterms, binary: newBinary, used: false });
+                                }
                             }
-                        }
-                    }
+                        });
+                    });
                 }
 
                 currentTable.forEach(item => {
@@ -585,16 +627,11 @@
                 });
 
                 if (nextTableMap.size === 0) break;
-                currentTable = Array.from(nextTableMap.values());
 
-                let iterationName = (iterationCount === 1) ? "First Iteration" : (iterationCount === 2) ? "Second Iteration" : `${iterationCount}th Iteration`;
+                currentTable = Array.from(nextTableMap.values());
+                let iterationName = (iterationCount === 1) ? "Second Column (First Combination)" : (iterationCount === 2) ? "Third Column (Second Combination)" : `${iterationCount + 1}th Column`;
                 
-                htmlContent += `<div class="table-step"><h4>${iterationName}</h4>`;
-                htmlContent += `<table><tr><th>Terms</th><th>Binary Representation</th></tr>`;
-                currentTable.forEach(item => {
-                    htmlContent += `<tr><td>${item.minterms.join(',')}</td><td>${item.binary}</td></tr>`;
-                });
-                htmlContent += `</table></div>`;
+                htmlContent += renderGroupedTable(currentTable, iterationName);
 
                 iterationCount++;
                 if (iterationCount > 15) break;
