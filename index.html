@@ -333,7 +333,14 @@
             }
         }
 
-        function copyExpression(exprText) {
+        function copyExpression() {
+            let exprElement = document.getElementById('exprText');
+            if (!exprElement) {
+                alert('لم يتم العثور على المعادلة!');
+                return;
+            }
+            
+            let exprText = exprElement.innerText;
             let textArea = document.createElement("textarea");
             textArea.value = exprText;
             
@@ -694,7 +701,7 @@
             htmlContent += `<div class="final-result">
                 <h3 style="margin-top:0; color: #27ae60;">Optimized Final Expression (${formType}):</h3>
                 <p style="font-size: 18px; font-family: monospace;" id="exprText">${fullExpressionString}</p>
-                <button class="btn-copy" id="copyBtn" onclick="copyExpression('${fullExpressionString}')">Copy Expression</button>
+                <button class="btn-copy" id="copyBtn" onclick="copyExpression()">Copy Expression</button>
             </div>`;
 
             outputDiv.innerHTML = htmlContent;
