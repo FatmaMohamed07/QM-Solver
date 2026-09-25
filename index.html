@@ -348,10 +348,19 @@
         function fallbackCopyText(text) {
             let textArea = document.createElement("textarea");
             textArea.value = text;
+            
             textArea.style.position = "fixed";
-            textArea.style.top = "0";
-            textArea.style.left = "0";
-            textArea.style.opacity = "0";
+            textArea.style.top = "10px";
+            textArea.style.left = "10px";
+            textArea.style.width = "2em";
+            textArea.style.height = "2em";
+            textArea.style.padding = "0";
+            textArea.style.border = "none";
+            textArea.style.outline = "none";
+            textArea.style.boxShadow = "none";
+            textArea.style.background = "transparent";
+            textArea.style.opacity = "0.01";
+            
             document.body.appendChild(textArea);
             textArea.focus();
             textArea.select();
@@ -361,10 +370,10 @@
                 if (successful) {
                     triggerCopySuccess();
                 } else {
-                    alert('عذراً، لم يتم النسخ. يمكنك نسخه يدوياً.');
+                    prompt("عذراً، لم يتم النسخ تلقائياً. يمكنك نسخه يدوياً من المربع أدناه:", text);
                 }
             } catch (err) {
-                alert('عذراً، لم يتم النسخ. يمكنك نسخه يدوياً.');
+                prompt("عذراً، لم يتم النسخ تلقائياً. يمكنك نسخه يدوياً من المربع أدناه:", text);
             }
             
             document.body.removeChild(textArea);
@@ -374,7 +383,11 @@
             let btn = document.getElementById('copyBtn');
             if(btn) {
                 btn.innerText = 'Copied Successfully! ✓';
-                setTimeout(() => { btn.innerText = 'Copy Expression'; }, 2000);
+                btn.style.backgroundColor = '#27ae60';
+                setTimeout(() => { 
+                    btn.innerText = 'Copy Expression'; 
+                    btn.style.backgroundColor = '#8e44ad';
+                }, 2000);
             }
         }
 
@@ -513,10 +526,9 @@
                     });
                     html += `</tr>`;
                 });
-                html += `</table></div>`;
+                html += `</div></table>`;
             }
 
-            // عرض Detected Implicant Groups تحت الخريطة مباشرة
             html += `<div style="margin-top: 20px;"><strong>Detected Implicant Groups:</strong>`;
             selectedPIs.forEach((pi, index) => {
                 let expr = binaryToExpression(pi.binary, formType, varNames);
