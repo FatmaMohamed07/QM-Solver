@@ -210,15 +210,15 @@
         </div>
 
         <div class="input-group">
-            <label for="variables">Number of Variables (1 - 5):</label>
-            <input type="number" id="variables" min="1" max="5" value="4" placeholder="Enter number of variables (e.g., 4)">
+            <label for="variables">Number of Variables (1 - 10):</label>
+            <input type="number" id="variables" min="1" max="10" value="4" placeholder="Enter number of variables (e.g., 4)">
         </div>
 
         <div class="input-group">
             <label for="varset">Variable Names Set:</label>
             <select id="varset">
-                <option value="ABCD">A, B, C, D, E</option>
-                <option value="WXYZ">V, W, X, Y, Z</option>
+                <option value="ABCD">A, B, C, D...</option>
+                <option value="WXYZ">V, W, X, Y, Z...</option>
             </select>
         </div>
 
@@ -275,18 +275,21 @@
             let setType = document.getElementById('varset').value;
             
             if (setType === 'ABCD') {
-                let defaultABCD = ['A', 'B', 'C', 'D', 'E'];
-                return defaultABCD.slice(0, varCount);
+                let allABCD = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+                return allABCD.slice(0, varCount);
             } else {
-                // المجموعه الثانية: الـ W تظهر من 4، والـ V تظهر في الـ 5
-                let fullWXYZ = ['V', 'W', 'X', 'Y', 'Z'];
                 if (varCount === 1) return ['Z'];
                 if (varCount === 2) return ['Y', 'Z'];
                 if (varCount === 3) return ['X', 'Y', 'Z'];
                 if (varCount === 4) return ['W', 'X', 'Y', 'Z'];
                 if (varCount === 5) return ['V', 'W', 'X', 'Y', 'Z'];
+                
+                // لأكثر من 5 متغيرات (لحد 10)
+                let baseWXYZ = ['V', 'W', 'X', 'Y', 'Z'];
+                let extraLetters = ['U', 'T', 'S', 'R', 'Q', 'P', 'O', 'N', 'M', 'L'];
+                let neededExtras = extraLetters.slice(0, varCount - 5).reverse();
+                return [...neededExtras, ...baseWXYZ];
             }
-            return ['A', 'B', 'C', 'D', 'E'].slice(0, varCount);
         }
 
         function toBinary(num, length) {
@@ -419,7 +422,7 @@
 
                 [0, 1].forEach(msb => {
                     let msbName = varNames[0];
-                    html += `<h5 style="margin:10px 0 5px 0; color:#2980b9;">Map for ${msbName} = ${msb} (Minterms ${msb === 0 ? '0-15' : '16-31'})</h5>`;
+                    html += `<h5 style="margin:10px 0 5px 0; color:#2980b9;">Map for ${msbName} = ${msb}</h5>`;
                     html += `<div style="overflow-x:auto;"><table>`;
                     html += `<tr><th style="background:#34495e; color:#fff;">${subRowVars} \\ ${subColVars}</th>`;
                     grayCode2.forEach(c => html += `<th style="background:#2c3e50; color:#fff;">${c}</th>`);
@@ -474,7 +477,7 @@
                     });
                     html += `</tr>`;
                 });
-                html += `</table></div>`;
+                html += `</div>`;
             }
 
             html += `<div style="margin-top: 15px;"><strong>Detected Implicant Groups:</strong>`;
@@ -637,8 +640,11 @@
             });
             htmlContent += `</table></div>`;
 
+            // عرض الكارنوف ماب لو كانت من 2 إلى 5 متغيرات، أو رسالة توضيحية لو أكبر من 5
             if (varCount >= 2 && varCount <= 5) {
                 htmlContent += generateKMap(varCount, primaryTerms, dontCares, selectedPIs, formType, varNames);
+            } else if (varCount > 5) {
+                htmlContent += `<div class="table-step"><h4>K-Map Representation</h4><p style="color: #e67e22; font-weight: bold;">Note: K-Map is supported for 2 to 5 variables only. For ${varCount} variables, the Tabular Method and Truth Table Verification are fully operational.</p></div>`;
             }
 
             htmlContent += generateTruthTableVerification(varCount, primaryTerms, dontCares, selectedPIs, formType, varNames);
