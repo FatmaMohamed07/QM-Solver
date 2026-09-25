@@ -525,12 +525,13 @@
             let sortedKeys = Object.keys(groups).map(Number).sort((a,b)=>a-b);
 
             let html = `<div class="table-step"><h4>${title}</h4>`;
-            html += `<table><tr><th>Group (No. of 1s)</th><th>Terms</th><th>Binary Representation</th><th>Used</th></tr>`;
+            html += `<table><tr><th>Group</th><th>Terms</th><th>Binary Representation</th><th>Used</th></tr>`;
 
+            // التعديل هنا: الترقيم يبدأ من 1 تصاعدياً بغض النظر عن عدد الـ 1s الفعلي
+            let visualGroupIndex = 1;
             sortedKeys.forEach(k => {
                 groups[k].forEach((item, idx) => {
-                    // تعديل الترقيم لي يبدأ الجروب من 1 بدلاً من 0 (أي Group (k+1))
-                    let groupCell = (idx === 0) ? `<td rowspan="${groups[k].length}" style="font-weight:bold; background:rgba(0,0,0,0.03);">Group ${k + 1}</td>` : '';
+                    let groupCell = (idx === 0) ? `<td rowspan="${groups[k].length}" style="font-weight:bold; background:rgba(0,0,0,0.03);">Group ${visualGroupIndex}</td>` : '';
                     html += `<tr>
                         ${groupCell}
                         <td>${item.minterms.join(',')}</td>
@@ -538,6 +539,7 @@
                         <td>${item.used ? '✓' : ''}</td>
                     </tr>`;
                 });
+                visualGroupIndex++;
             });
 
             html += `</table></div>`;
@@ -639,32 +641,48 @@
 
             let sortedPrimary = [...primaryTerms].sort((a,b)=>a-b);
             let selectedPIs = [];
-            let coveredMinterms = new Set();
 
+            // تحسين منطق اختيار الـ Prime Implicants لضمان عدم أخذ تيرمات زائدة واختيار الحد الأدنى الفعّال (Petrick's / Greedy Column Domination approach)
+            let uncovered = new Set(sortedPrimary);
+            let piCoverage = primeImplicants.map(pi => ({
+                pi: pi,
+                covers: pi.minterms.filter(m => primaryTerms.includes(m))
+            }));
+
+            // تصفية الـ PIs التي تغطي الـ Essential Prime Implicants أولاً
             sortedPrimary.forEach(m => {
-                let coveringPIs = primeImplicants.filter(pi => pi.minterms.includes(m));
-                if (coveringPIs.length === 1) {
-                    let pi = coveringPIs[0];
+                let covering = piCoverage.filter(item => item.covers.includes(m));
+                if (covering.length === 1) {
+                    let pi = covering[0].pi;
                     if (!selectedPIs.includes(pi)) {
                         selectedPIs.push(pi);
-                        pi.minterms.forEach(tm => {
-                            if (primaryTerms.includes(tm)) coveredMinterms.add(tm);
-                        });
+                        pi.minterms.forEach(tm => uncovered.delete(tm));
                     }
                 }
             });
 
-            primeImplicants.forEach(pi => {
-                if (!selectedPIs.includes(pi)) {
-                    let helps = pi.minterms.some(tm => primaryTerms.includes(tm) && !coveredMinterms.has(tm));
-                    if (helps) {
-                        selectedPIs.push(pi);
-                        pi.minterms.forEach(tm => {
-                            if (primaryTerms.includes(tm)) coveredMinterms.add(tm);
-                        });
+            // اختيار باقي الـ PIs الأكثر تغطية للمتبقي دون تكرار ضار
+            while (uncovered.size > 0) {
+                let bestPI = null;
+                let maxCovered = -1;
+
+                piCoverage.forEach(item => {
+                    if (!selectedPIs.includes(item.pi)) {
+                        let count = item.covers.filter(m => uncovered.has(m)).length;
+                        if (count > maxCovered) {
+                            maxCovered = count;
+                            bestPI = item.pi;
+                        }
                     }
+                });
+
+                if (bestPI && maxCovered > 0) {
+                    selectedPIs.push(bestPI);
+                    bestPI.minterms.forEach(tm => uncovered.delete(tm));
+                } else {
+                    break;
                 }
-            });
+            }
 
             if (selectedPIs.length === 0) selectedPIs = primeImplicants;
 
