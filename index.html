@@ -334,11 +334,48 @@
         }
 
         function copyExpression(exprText) {
-            navigator.clipboard.writeText(exprText).then(() => {
-                let btn = document.getElementById('copyBtn');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(exprText).then(() => {
+                    triggerCopySuccess();
+                }).catch(err => {
+                    fallbackCopyText(exprText);
+                });
+            } else {
+                fallbackCopyText(exprText);
+            }
+        }
+
+        function fallbackCopyText(text) {
+            let textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                let successful = document.execCommand('copy');
+                if (successful) {
+                    triggerCopySuccess();
+                } else {
+                    alert('عذراً، لم يتم النسخ. يمكنك نسخه يدوياً.');
+                }
+            } catch (err) {
+                alert('عذراً، لم يتم النسخ. يمكنك نسخه يدوياً.');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
+        function triggerCopySuccess() {
+            let btn = document.getElementById('copyBtn');
+            if(btn) {
                 btn.innerText = 'Copied Successfully! ✓';
                 setTimeout(() => { btn.innerText = 'Copy Expression'; }, 2000);
-            });
+            }
         }
 
         function evaluateExpressionForTerm(termVal, varCount, selectedPIs, formType) {
@@ -479,7 +516,7 @@
                 html += `</table></div>`;
             }
 
-            // ظهور Detected Implicant Groups تحت الخريطة مباشرة مرتبة وصحيحة
+            // عرض Detected Implicant Groups تحت الخريطة مباشرة
             html += `<div style="margin-top: 20px;"><strong>Detected Implicant Groups:</strong>`;
             selectedPIs.forEach((pi, index) => {
                 let expr = binaryToExpression(pi.binary, formType, varNames);
@@ -499,7 +536,6 @@
             });
             let sortedKeys = Object.keys(groups).map(Number).sort((a,b)=>a-b);
             
-            // إضافة overflow-x لدعم الموبايل والشاشات الصغيرة بدون تداخل
             let html = `<div class="table-step"><h4>${title}</h4>`;
             html += `<div style="overflow-x:auto;"><table><tr><th>Group</th><th>Terms</th><th>Binary Representation</th><th>Used</th></tr>`;
             
@@ -644,7 +680,6 @@
             });
             htmlContent += `</table></div>`;
 
-            // عرض الكارنوف ماب والمجموعات تحتها لو من 2 لـ 5 متغيرات
             if (varCount >= 2 && varCount <= 5) {
                 htmlContent += generateKMap(varCount, primaryTerms, dontCares, selectedPIs, formType, varNames);
             } else if (varCount > 5) {
