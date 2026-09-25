@@ -284,7 +284,6 @@
                 if (varCount === 4) return ['W', 'X', 'Y', 'Z'];
                 if (varCount === 5) return ['V', 'W', 'X', 'Y', 'Z'];
                 
-                // لأكثر من 5 متغيرات (لحد 10)
                 let baseWXYZ = ['V', 'W', 'X', 'Y', 'Z'];
                 let extraLetters = ['U', 'T', 'S', 'R', 'Q', 'P', 'O', 'N', 'M', 'L'];
                 let neededExtras = extraLetters.slice(0, varCount - 5).reverse();
@@ -477,15 +476,17 @@
                     });
                     html += `</tr>`;
                 });
-                html += `</div>`;
+                html += `</table></div>`;
             }
 
-            html += `<div style="margin-top: 15px;"><strong>Detected Implicant Groups:</strong>`;
+            // ظهور Detected Implicant Groups تحت الخريطة مباشرة مرتبة وصحيحة
+            html += `<div style="margin-top: 20px;"><strong>Detected Implicant Groups:</strong>`;
             selectedPIs.forEach((pi, index) => {
                 let expr = binaryToExpression(pi.binary, formType, varNames);
                 html += `<div class="group-card">Group ${index + 1}: Terms <code>[${pi.minterms.join(', ')}]</code> → <strong>${expr}</strong></div>`;
             });
             html += `</div></div>`;
+
             return html;
         }
 
@@ -497,8 +498,11 @@
                 groups[ones].push(item);
             });
             let sortedKeys = Object.keys(groups).map(Number).sort((a,b)=>a-b);
+            
+            // إضافة overflow-x لدعم الموبايل والشاشات الصغيرة بدون تداخل
             let html = `<div class="table-step"><h4>${title}</h4>`;
-            html += `<table><tr><th>Group</th><th>Terms</th><th>Binary Representation</th><th>Used</th></tr>`;
+            html += `<div style="overflow-x:auto;"><table><tr><th>Group</th><th>Terms</th><th>Binary Representation</th><th>Used</th></tr>`;
+            
             let visualGroupIndex = 1;
             sortedKeys.forEach(k => {
                 groups[k].forEach((item, idx) => {
@@ -507,7 +511,7 @@
                 });
                 visualGroupIndex++;
             });
-            html += `</table></div>`;
+            html += `</table></div></div>`;
             return html;
         }
 
@@ -640,7 +644,7 @@
             });
             htmlContent += `</table></div>`;
 
-            // عرض الكارنوف ماب لو كانت من 2 إلى 5 متغيرات، أو رسالة توضيحية لو أكبر من 5
+            // عرض الكارنوف ماب والمجموعات تحتها لو من 2 لـ 5 متغيرات
             if (varCount >= 2 && varCount <= 5) {
                 htmlContent += generateKMap(varCount, primaryTerms, dontCares, selectedPIs, formType, varNames);
             } else if (varCount > 5) {
