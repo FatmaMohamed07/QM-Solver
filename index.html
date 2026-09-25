@@ -273,21 +273,20 @@
 
         function getVarNames(varCount) {
             let setType = document.getElementById('varset').value;
-            let defaultSets = {
-                'ABCD': ['A', 'B', 'C', 'D', 'E'],
-                'WXYZ': ['V', 'W', 'X', 'Y', 'Z']
-            };
             
-            // لو اخترنا WXYZ وعدد المتغيرات أقل من 5، بنجيبهم من الآخر للأول (مثلاً لو 4: W,X,Y,Z لو 2: Y,Z أو W,X حسب الرغبة، وخلينا ناخد آخر العناصر عشان يبقوا مظبوطين)
-            let selectedSet = defaultSets[setType] || defaultSets['ABCD'];
-            if (setType === 'WXYZ') {
-                if (varCount === 2) return ['W', 'X'];
-                if (varCount === 3) return ['W', 'X', 'Y'];
+            if (setType === 'ABCD') {
+                let defaultABCD = ['A', 'B', 'C', 'D', 'E'];
+                return defaultABCD.slice(0, varCount);
+            } else {
+                // المجموعه الثانية: الـ W تظهر من 4، والـ V تظهر في الـ 5
+                let fullWXYZ = ['V', 'W', 'X', 'Y', 'Z'];
+                if (varCount === 1) return ['Z'];
+                if (varCount === 2) return ['Y', 'Z'];
+                if (varCount === 3) return ['X', 'Y', 'Z'];
                 if (varCount === 4) return ['W', 'X', 'Y', 'Z'];
                 if (varCount === 5) return ['V', 'W', 'X', 'Y', 'Z'];
             }
-            
-            return selectedSet.slice(0, varCount);
+            return ['A', 'B', 'C', 'D', 'E'].slice(0, varCount);
         }
 
         function toBinary(num, length) {
