@@ -193,55 +193,6 @@
             border-radius: 4px;
             font-weight: bold;
         }
-
-        @media print {
-            body {
-                background-color: #ffffff !important;
-                color: #000000 !important;
-                padding: 0;
-            }
-            .container {
-                box-shadow: none;
-                padding: 0;
-                background: #ffffff !important;
-                max-width: 100% !important;
-            }
-            button, .input-group, h1, .theme-toggle {
-                display: none !important;
-            }
-            #output {
-                background: #ffffff !important;
-                margin-top: 0;
-                padding: 0;
-                color: #000000 !important;
-            }
-            .table-step, .final-result {
-                background: #ffffff !important;
-                border: 1px solid #ccc !important;
-                page-break-inside: avoid;
-            }
-            th {
-                background-color: #333333 !important;
-                color: #ffffff !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            td {
-                color: #000000 !important;
-            }
-            .kmap-cell-1 {
-                background-color: #e2f0d9 !important;
-                border: 2px dashed #27ae60 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            .verification-badge-match {
-                background-color: #e2f0d9 !important;
-                color: #155724 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-        }
     </style>
 </head>
 <body data-theme="light">
@@ -259,17 +210,22 @@
         </div>
 
         <div class="input-group">
-            <label for="variables">Number of Variables (1 - 10):</label>
-            <input type="number" id="variables" min="1" max="10" value="4" placeholder="Enter number of variables (e.g., 4)">
+            <label for="variables">Number of Variables (1 - 5):</label>
+            <input type="number" id="variables" min="1" max="5" value="4" placeholder="Enter number of variables (e.g., 4)">
         </div>
 
         <div class="input-group">
-            <label for="terms">Primary Terms (Minterms / Maxterms) - comma or space separated:</label>
+            <label for="varnames">Variable Names (comma/space separated, e.g., A,B,C,D or v,w,x,y,z):</label>
+            <input type="text" id="varnames" placeholder="Leave empty for default (A, B, C...)">
+        </div>
+
+        <div class="input-group">
+            <label for="terms">Primary Terms (Minterms / Maxterms):</label>
             <input type="text" id="terms" placeholder="e.g., 1, 2, 3, 5, 6">
         </div>
 
         <div class="input-group">
-            <label for="dontcares">Don't Cares (Optional) - comma or space separated:</label>
+            <label for="dontcares">Don't Cares (Optional):</label>
             <input type="text" id="dontcares" placeholder="e.g., 0, 7">
         </div>
 
@@ -289,10 +245,6 @@
                 document.body.setAttribute('data-theme', 'dark');
                 document.querySelector('.theme-toggle').innerText = '☀️ Light Mode';
             }
-            if(localStorage.getItem('qmc_type')) document.getElementById('type').value = localStorage.getItem('qmc_type');
-            if(localStorage.getItem('qmc_vars')) document.getElementById('variables').value = localStorage.getItem('qmc_vars');
-            if(localStorage.getItem('qmc_terms')) document.getElementById('terms').value = localStorage.getItem('qmc_terms');
-            if(localStorage.getItem('qmc_dc')) document.getElementById('dontcares').value = localStorage.getItem('qmc_dc');
         }
 
         function toggleTheme() {
@@ -307,13 +259,6 @@
             }
         }
 
-        function saveInputsToStorage(formType, varCount, terms, dc) {
-            localStorage.setItem('qmc_type', formType);
-            localStorage.setItem('qmc_vars', varCount);
-            localStorage.setItem('qmc_terms', terms);
-            localStorage.setItem('qmc_dc', dc);
-        }
-
         function parseTerms(inputStr) {
             if (!inputStr) return [];
             return inputStr
@@ -321,6 +266,18 @@
                 .split(/[\s,]+/)
                 .map(x => parseInt(x.trim()))
                 .filter(x => !isNaN(x));
+        }
+
+        function getVarNames(varCount) {
+            let customInput = document.getElementById('varnames').value.trim();
+            let defaultNames = ['A', 'B', 'C', 'D', 'E'];
+            if (customInput) {
+                let parts = customInput.split(/[\s,]+/).filter(x => x.length > 0);
+                if (parts.length >= varCount) {
+                    return parts.slice(0, varCount);
+                }
+            }
+            return defaultNames.slice(0, varCount);
         }
 
         function toBinary(num, length) {
@@ -348,17 +305,15 @@
             return { isOne: diffCount === 1, index: diffIndex };
         }
 
-        function binaryToExpression(binaryStr, type) {
-            let varNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        function binaryToExpression(binaryStr, type, varNames) {
             let resultParts = [];
-
             if (type === 'SOP') {
                 for (let i = 0; i < binaryStr.length; i++) {
                     if (binaryStr[i] === '1') resultParts.push(varNames[i]);
                     else if (binaryStr[i] === '0') resultParts.push(varNames[i] + "'");
                 }
                 return resultParts.join('') || '1';
-            } else { // POS
+            } else {
                 for (let i = 0; i < binaryStr.length; i++) {
                     if (binaryStr[i] === '0') resultParts.push(varNames[i]);
                     else if (binaryStr[i] === '1') resultParts.push(varNames[i] + "'");
@@ -371,9 +326,7 @@
             navigator.clipboard.writeText(exprText).then(() => {
                 let btn = document.getElementById('copyBtn');
                 btn.innerText = 'Copied Successfully! ✓';
-                setTimeout(() => {
-                    btn.innerText = 'Copy Expression';
-                }, 2000);
+                setTimeout(() => { btn.innerText = 'Copy Expression'; }, 2000);
             });
         }
 
@@ -408,28 +361,21 @@
             }
         }
 
-        function generateTruthTableVerification(varCount, primaryTerms, dontCares, selectedPIs, formType) {
+        function generateTruthTableVerification(varCount, primaryTerms, dontCares, selectedPIs, formType, varNames) {
             let maxTerms = Math.pow(2, varCount);
             let html = `<div class="table-step">`;
             html += `<h4>Truth Table Verification Matrix</h4>`;
-            html += `<p style="font-size: 13px; opacity: 0.8; margin-top:0;">Comparing original specification against the optimized final expression across all possible input combinations.</p>`;
-            
-            html += `<div style="overflow-x:auto;"><table>`;
-            html += `<tr>`;
-            let varNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-            for(let i=0; i<varCount; i++) {
-                html += `<th>${varNames[i]}</th>`;
-            }
+            html += `<div style="overflow-x:auto;"><table><tr>`;
+            for(let i=0; i<varCount; i++) html += `<th>${varNames[i]}</th>`;
             html += `<th>Decimal</th><th>Original F</th><th>Optimized F</th><th>Status</th></tr>`;
 
             for(let m = 0; m < maxTerms; m++) {
                 let bin = toBinary(m, varCount);
                 let isPrimary = primaryTerms.includes(m);
                 let isDC = dontCares.includes(m);
-                
                 let optVal = evaluateExpressionForTerm(m, varCount, selectedPIs, formType);
-
                 let matches = true;
+
                 if (formType === 'SOP') {
                     if (isPrimary && optVal !== 1) matches = false;
                     if (!isPrimary && !isDC && optVal !== 0) matches = false;
@@ -439,78 +385,97 @@
                 }
 
                 html += `<tr>`;
-                for(let i=0; i<varCount; i++) {
-                    html += `<td>${bin[i]}</td>`;
-                }
+                for(let i=0; i<varCount; i++) html += `<td>${bin[i]}</td>`;
                 html += `<td>${m}</td>`;
                 html += `<td><strong>${isPrimary ? (formType==='SOP'?'1':'0') : (isDC?'X':'0/1')}</strong></td>`;
                 html += `<td><strong>${optVal}</strong></td>`;
                 html += `<td>${matches || isDC ? '<span class="verification-badge-match">Match ✓</span>' : '<span style="color:red; font-weight:bold;">Mismatch</span>'}</td>`;
                 html += `</tr>`;
             }
-
             html += `</table></div></div>`;
             return html;
         }
 
-        function generateKMap(varCount, primaryTerms, dontCares, selectedPIs, formType) {
-            if (varCount < 2 || varCount > 5) return '<p>K-Map preview is supported for 2 to 5 variables.</p>';
-            
+        function generateKMap(varCount, primaryTerms, dontCares, selectedPIs, formType, varNames) {
+            if (varCount < 2 || varCount > 5) return '<p>K-Map is supported for 2 to 5 variables.</p>';
+
             let grayCode2 = ['00', '01', '11', '10'];
             let grayCode1 = ['0', '1'];
-            let rowGray, colGray, rowVars, colVars;
+            let html = `<div class="table-step"><h4>K-Map Representation</h4>`;
 
-            if (varCount === 2) { 
-                rowGray = grayCode1; colGray = grayCode1; rowVars = 'A'; colVars = 'B';
-            } else if (varCount === 3) { 
-                rowGray = grayCode1; colGray = grayCode2; rowVars = 'A'; colVars = 'BC';
-            } else if (varCount === 4) { 
-                rowGray = grayCode2; colGray = grayCode2; rowVars = 'AB'; colVars = 'CD';
-            } else if (varCount === 5) { 
-                rowGray = grayCode2; colGray = ['000', '001', '011', '010', '110', '111', '101', '100']; rowVars = 'AB'; colVars = 'CDE';
+            if (varCount === 5) {
+                // تقسيم الـ 5 متغيرات إلى خريطتين: الأولى عندما يكون المتغير الأول 0، والثانية عندما يكون 1
+                let subVars = varNames.slice(1); // باقي المتغيرات الـ 4
+                let subRowVars = subVars.slice(0, 2).join('');
+                let subColVars = subVars.slice(2, 4).join('');
+
+                [0, 1].forEach(msb => {
+                    let msbName = varNames[0];
+                    html += `<h5 style="margin:10px 0 5px 0; color:#2980b9;">Map for ${msbName} = ${msb} (Minterms ${msb === 0 ? '0-15' : '16-31'})</h5>`;
+                    html += `<div style="overflow-x:auto;"><table>`;
+                    html += `<tr><th style="background:#34495e; color:#fff;">${subRowVars} \\ ${subColVars}</th>`;
+                    grayCode2.forEach(c => html += `<th style="background:#2c3e50; color:#fff;">${c}</th>`);
+                    html += `</tr>`;
+
+                    grayCode2.forEach(r => {
+                        html += `<tr><th style="background:#2c3e50; color:#fff;">${r}</th>`;
+                        grayCode2.forEach(c => {
+                            let binVal = msb.toString() + r + c;
+                            let decVal = parseInt(binVal, 2);
+                            let cellContent = '0';
+                            let cellClass = '';
+                            if (primaryTerms.includes(decVal)) {
+                                cellContent = formType === 'SOP' ? '1' : '0';
+                                cellClass = 'kmap-cell-1';
+                            } else if (dontCares.includes(decVal)) {
+                                cellContent = 'X';
+                                cellClass = 'kmap-cell-d';
+                            }
+                            html += `<td class="${cellClass}">${cellContent} <sub style="font-size:10px; opacity:0.6">[${decVal}]</sub></td>`;
+                        });
+                        html += `</tr>`;
+                    });
+                    html += `</table></div>`;
+                });
+            } else {
+                // للـ 2، 3، أو 4 متغيرات
+                let rowGray, colGray, rowVars, colVars;
+                if (varCount === 2) { rowGray = grayCode1; colGray = grayCode1; rowVars = varNames[0]; colVars = varNames[1]; }
+                else if (varCount === 3) { rowGray = grayCode1; colGray = grayCode2; rowVars = varNames[0]; colVars = varNames[1]+varNames[2]; }
+                else if (varCount === 4) { rowGray = grayCode2; colGray = grayCode2; rowVars = varNames[0]+varNames[1]; colVars = varNames[2]+varNames[3]; }
+
+                html += `<div style="overflow-x:auto;"><table>`;
+                html += `<tr><th style="background:#34495e; color:#fff; text-align:center;">${rowVars} \\ ${colVars}</th>`;
+                colGray.forEach(c => html += `<th style="background:#2c3e50; color:#fff;">${c}</th>`);
+                html += `</tr>`;
+
+                rowGray.forEach(r => {
+                    html += `<tr><th style="background:#2c3e50; color:#fff;">${r}</th>`;
+                    colGray.forEach(c => {
+                        let binVal = r + c;
+                        let decVal = parseInt(binVal, 2);
+                        let cellContent = '0';
+                        let cellClass = '';
+                        if (primaryTerms.includes(decVal)) {
+                            cellContent = formType === 'SOP' ? '1' : '0';
+                            cellClass = 'kmap-cell-1';
+                        } else if (dontCares.includes(decVal)) {
+                            cellContent = 'X';
+                            cellClass = 'kmap-cell-d';
+                        }
+                        html += `<td class="${cellClass}">${cellContent} <sub style="font-size:10px; opacity:0.6">[${decVal}]</sub></td>`;
+                    });
+                    html += `</tr>`;
+                });
+                html += `</table></div>`;
             }
 
-            let html = `<div class="table-step">`;
-            html += `<h4>K-Map Groups Breakdown (${rowVars} \\ ${colVars})</h4>`;
-            html += `<p style="font-size: 13px; opacity: 0.8; margin-top:0;">The table below highlights individual cells, and the cards underneath show which terms were grouped together into Prime Implicants.</p>`;
-            
-            html += `<div style="overflow-x:auto;"><table>`;
-            html += `<tr><th style="background:#34495e; color:#fff; text-align:center;">${rowVars} \\ ${colVars}</th>`;
-            
-            colGray.forEach(c => html += `<th style="background:#2c3e50; color:#fff;">${c}</th>`);
-            html += `</tr>`;
-
-            rowGray.forEach(r => {
-                html += `<tr><th style="background:#2c3e50; color:#fff;">${r}</th>`;
-                colGray.forEach(c => {
-                    let binVal = r + c;
-                    let decVal = parseInt(binVal, 2);
-                    let cellContent = '0';
-                    let cellClass = '';
-
-                    if (primaryTerms.includes(decVal)) {
-                        cellContent = formType === 'SOP' ? '1' : '0';
-                        cellClass = 'kmap-cell-1';
-                    } else if (dontCares.includes(decVal)) {
-                        cellContent = 'X';
-                        cellClass = 'kmap-cell-d';
-                    }
-
-                    html += `<td class="${cellClass}">${cellContent} <sub style="font-size:10px; opacity:0.6">[${decVal}]</sub></td>`;
-                });
-                html += `</tr>`;
-            });
-
-            html += `</table></div>`;
-            html += `<div style="margin-top: 15px;"><strong>Detected Implicant Groups (Clusters):</strong>`;
+            html += `<div style="margin-top: 15px;"><strong>Detected Implicant Groups:</strong>`;
             selectedPIs.forEach((pi, index) => {
-                let expr = binaryToExpression(pi.binary, formType);
-                html += `<div class="group-card">
-                    <strong>Group ${index + 1}:</strong> Contains Minterms/Terms <code>[${pi.minterms.join(', ')}]</code> → Combined Term: <strong>${expr}</strong> (Binary: <code>${pi.binary}</code>)
-                </div>`;
+                let expr = binaryToExpression(pi.binary, formType, varNames);
+                html += `<div class="group-card">Group ${index + 1}: Terms <code>[${pi.minterms.join(', ')}]</code> → <strong>${expr}</strong></div>`;
             });
             html += `</div></div>`;
-
             return html;
         }
 
@@ -521,26 +486,17 @@
                 if (!groups[ones]) groups[ones] = [];
                 groups[ones].push(item);
             });
-
             let sortedKeys = Object.keys(groups).map(Number).sort((a,b)=>a-b);
-
             let html = `<div class="table-step"><h4>${title}</h4>`;
             html += `<table><tr><th>Group</th><th>Terms</th><th>Binary Representation</th><th>Used</th></tr>`;
-
             let visualGroupIndex = 1;
             sortedKeys.forEach(k => {
                 groups[k].forEach((item, idx) => {
                     let groupCell = (idx === 0) ? `<td rowspan="${groups[k].length}" style="font-weight:bold; background:rgba(0,0,0,0.03);">Group ${visualGroupIndex}</td>` : '';
-                    html += `<tr>
-                        ${groupCell}
-                        <td>${item.minterms.join(',')}</td>
-                        <td><code>${item.binary}</code></td>
-                        <td>${item.used ? '✓' : ''}</td>
-                    </tr>`;
+                    html += `<tr>${groupCell}<td>${item.minterms.join(',')}</td><td><code>${item.binary}</code></td><td>${item.used ? '✓' : ''}</td></tr>`;
                 });
                 visualGroupIndex++;
             });
-
             html += `</table></div>`;
             return html;
         }
@@ -551,24 +507,17 @@
             const termsInput = document.getElementById('terms').value;
             const dontcaresInput = document.getElementById('dontcares').value;
             const outputDiv = document.getElementById('output');
+            const varNames = getVarNames(varCount);
 
             if (!termsInput || isNaN(varCount) || varCount < 1) {
                 alert('Please enter valid variables and primary terms!');
                 return;
             }
 
-            saveInputsToStorage(formType, varCount, termsInput, dontcaresInput);
-
             let maxLimit = Math.pow(2, varCount) - 1;
             let primaryTerms = Array.from(new Set(parseTerms(termsInput))).sort((a,b)=>a-b);
             let dontCares = Array.from(new Set(parseTerms(dontcaresInput))).sort((a,b)=>a-b);
             let allTerms = Array.from(new Set([...primaryTerms, ...dontCares]));
-
-            let outOfRange = allTerms.find(t => t < 0 || t > maxLimit);
-            if (outOfRange !== undefined) {
-                alert(`Error: Term ${outOfRange} is out of range! For ${varCount} variables, terms must be between 0 and ${maxLimit}.`);
-                return;
-            }
 
             let currentTable = allTerms.map(m => ({
                 minterms: [m],
@@ -579,15 +528,12 @@
             let htmlContent = `<h3>Step-by-Step Solution (${formType}):</h3>`;
             let primeImplicants = [];
 
-            // الجدول الأول: Initially Formed Table
             htmlContent += renderGroupedTable(currentTable, "Initially Formed Table");
-
             let iterationCount = 1;
 
             while (true) {
                 let nextTableMap = new Map();
                 let groups = {};
-                
                 currentTable.forEach(item => {
                     let ones = countOnes(item.binary);
                     if (!groups[ones]) groups[ones] = [];
@@ -595,11 +541,9 @@
                 });
 
                 let groupKeys = Object.keys(groups).map(Number).sort((a,b)=>a-b);
-
                 for (let i = 0; i < groupKeys.length - 1; i++) {
                     let g1 = groups[groupKeys[i]];
                     let g2 = groups[groupKeys[i+1]];
-
                     g1.forEach(t1 => {
                         g2.forEach(t2 => {
                             let check = differByOne(t1.binary, t2.binary);
@@ -611,7 +555,6 @@
                                 newBinary = newBinary.join('');
                                 let combinedMinterms = Array.from(new Set([...t1.minterms, ...t2.minterms])).sort((a,b)=>a-b);
                                 let key = combinedMinterms.join(',');
-
                                 if (!nextTableMap.has(key)) {
                                     nextTableMap.set(key, { minterms: combinedMinterms, binary: newBinary, used: false });
                                 }
@@ -621,29 +564,21 @@
                 }
 
                 currentTable.forEach(item => {
-                    if (!item.used) {
-                        if (!primeImplicants.some(pi => pi.binary === item.binary)) {
-                            primeImplicants.push(item);
-                        }
+                    if (!item.used && !primeImplicants.some(pi => pi.binary === item.binary)) {
+                        primeImplicants.push(item);
                     }
                 });
 
                 if (nextTableMap.size === 0) break;
-
                 currentTable = Array.from(nextTableMap.values());
-                
-                // تسمية التكرارات: First Iteration, Second Iteration, Third Iteration ... إلخ
                 let iterationTitle = (iterationCount === 1) ? "First Iteration" : (iterationCount === 2) ? "Second Iteration" : `${iterationCount}th Iteration`;
-                
                 htmlContent += renderGroupedTable(currentTable, iterationTitle);
-
                 iterationCount++;
                 if (iterationCount > 15) break;
             }
 
             let sortedPrimary = [...primaryTerms].sort((a,b)=>a-b);
             let selectedPIs = [];
-
             let uncovered = new Set(sortedPrimary);
             let piCoverage = primeImplicants.map(pi => ({
                 pi: pi,
@@ -664,59 +599,45 @@
             while (uncovered.size > 0) {
                 let bestPI = null;
                 let maxCovered = -1;
-
                 piCoverage.forEach(item => {
                     if (!selectedPIs.includes(item.pi)) {
                         let count = item.covers.filter(m => uncovered.has(m)).length;
-                        if (count > maxCovered) {
-                            maxCovered = count;
-                            bestPI = item.pi;
-                        }
+                        if (count > maxCovered) { maxCovered = count; bestPI = item.pi; }
                     }
                 });
-
                 if (bestPI && maxCovered > 0) {
                     selectedPIs.push(bestPI);
                     bestPI.minterms.forEach(tm => uncovered.delete(tm));
-                } else {
-                    break;
-                }
+                } else { break; }
             }
 
             if (selectedPIs.length === 0) selectedPIs = primeImplicants;
 
             htmlContent += `<h3>Prime Implicant Chart:</h3>`;
-            htmlContent += `<div class="table-step" style="overflow-x:auto;">`;
-            htmlContent += `<table><tr><th>Prime Implicants</th><th>Expression</th>`;
-            
-            sortedPrimary.forEach(m => {
-                htmlContent += `<th>${m}</th>`;
-            });
+            htmlContent += `<div class="table-step" style="overflow-x:auto;"><table><tr><th>Prime Implicants</th><th>Expression</th>`;
+            sortedPrimary.forEach(m => htmlContent += `<th>${m}</th>`);
             htmlContent += `</tr>`;
 
             primeImplicants.forEach((pi) => {
-                let expr = binaryToExpression(pi.binary, formType);
+                let expr = binaryToExpression(pi.binary, formType, varNames);
                 let isSelected = selectedPIs.includes(pi);
                 let rowStyle = isSelected ? 'background-color: var(--selected-bg); font-weight: bold;' : '';
-                
                 htmlContent += `<tr style="${rowStyle}"><td>${pi.minterms.join(',')} ${isSelected ? '★' : ''}</td><td><strong>${expr}</strong></td>`;
-                
                 sortedPrimary.forEach(m => {
                     let covers = pi.minterms.includes(m);
                     htmlContent += `<td>${covers ? '<span class="mark-x">X</span>' : ''}</td>`;
                 });
                 htmlContent += `</tr>`;
             });
-
             htmlContent += `</table></div>`;
 
             if (varCount >= 2 && varCount <= 5) {
-                htmlContent += generateKMap(varCount, primaryTerms, dontCares, selectedPIs, formType);
+                htmlContent += generateKMap(varCount, primaryTerms, dontCares, selectedPIs, formType, varNames);
             }
 
-            htmlContent += generateTruthTableVerification(varCount, primaryTerms, dontCares, selectedPIs, formType);
+            htmlContent += generateTruthTableVerification(varCount, primaryTerms, dontCares, selectedPIs, formType, varNames);
 
-            let finalExpressionParts = selectedPIs.map(pi => binaryToExpression(pi.binary, formType));
+            let finalExpressionParts = selectedPIs.map(pi => binaryToExpression(pi.binary, formType, varNames));
             let finalConnector = (formType === 'SOP') ? ' + ' : ' . ';
             let fullExpressionString = `F = ${finalExpressionParts.join(finalConnector)}`;
             
@@ -729,6 +650,5 @@
             outputDiv.innerHTML = htmlContent;
         }
     </script>
-
 </body>
 </html>
