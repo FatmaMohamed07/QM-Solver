@@ -215,8 +215,11 @@
         </div>
 
         <div class="input-group">
-            <label for="varnames">Variable Names (comma/space separated, e.g., A,B,C,D or v,w,x,y,z):</label>
-            <input type="text" id="varnames" placeholder="Leave empty for default (A, B, C...)">
+            <label for="varset">Variable Names Set:</label>
+            <select id="varset">
+                <option value="ABCD">A, B, C, D, E</option>
+                <option value="WXYZ">V, W, X, Y, Z</option>
+            </select>
         </div>
 
         <div class="input-group">
@@ -269,15 +272,22 @@
         }
 
         function getVarNames(varCount) {
-            let customInput = document.getElementById('varnames').value.trim();
-            let defaultNames = ['A', 'B', 'C', 'D', 'E'];
-            if (customInput) {
-                let parts = customInput.split(/[\s,]+/).filter(x => x.length > 0);
-                if (parts.length >= varCount) {
-                    return parts.slice(0, varCount);
-                }
+            let setType = document.getElementById('varset').value;
+            let defaultSets = {
+                'ABCD': ['A', 'B', 'C', 'D', 'E'],
+                'WXYZ': ['V', 'W', 'X', 'Y', 'Z']
+            };
+            
+            // لو اخترنا WXYZ وعدد المتغيرات أقل من 5، بنجيبهم من الآخر للأول (مثلاً لو 4: W,X,Y,Z لو 2: Y,Z أو W,X حسب الرغبة، وخلينا ناخد آخر العناصر عشان يبقوا مظبوطين)
+            let selectedSet = defaultSets[setType] || defaultSets['ABCD'];
+            if (setType === 'WXYZ') {
+                if (varCount === 2) return ['W', 'X'];
+                if (varCount === 3) return ['W', 'X', 'Y'];
+                if (varCount === 4) return ['W', 'X', 'Y', 'Z'];
+                if (varCount === 5) return ['V', 'W', 'X', 'Y', 'Z'];
             }
-            return defaultNames.slice(0, varCount);
+            
+            return selectedSet.slice(0, varCount);
         }
 
         function toBinary(num, length) {
@@ -404,8 +414,7 @@
             let html = `<div class="table-step"><h4>K-Map Representation</h4>`;
 
             if (varCount === 5) {
-                // تقسيم الـ 5 متغيرات إلى خريطتين: الأولى عندما يكون المتغير الأول 0، والثانية عندما يكون 1
-                let subVars = varNames.slice(1); // باقي المتغيرات الـ 4
+                let subVars = varNames.slice(1);
                 let subRowVars = subVars.slice(0, 2).join('');
                 let subColVars = subVars.slice(2, 4).join('');
 
@@ -438,7 +447,6 @@
                     html += `</table></div>`;
                 });
             } else {
-                // للـ 2، 3، أو 4 متغيرات
                 let rowGray, colGray, rowVars, colVars;
                 if (varCount === 2) { rowGray = grayCode1; colGray = grayCode1; rowVars = varNames[0]; colVars = varNames[1]; }
                 else if (varCount === 3) { rowGray = grayCode1; colGray = grayCode2; rowVars = varNames[0]; colVars = varNames[1]+varNames[2]; }
@@ -514,7 +522,6 @@
                 return;
             }
 
-            let maxLimit = Math.pow(2, varCount) - 1;
             let primaryTerms = Array.from(new Set(parseTerms(termsInput))).sort((a,b)=>a-b);
             let dontCares = Array.from(new Set(parseTerms(dontcaresInput))).sort((a,b)=>a-b);
             let allTerms = Array.from(new Set([...primaryTerms, ...dontCares]));
