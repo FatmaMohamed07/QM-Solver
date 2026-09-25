@@ -334,24 +334,12 @@
         }
 
         function copyExpression(exprText) {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(exprText).then(() => {
-                    triggerCopySuccess();
-                }).catch(err => {
-                    fallbackCopyText(exprText);
-                });
-            } else {
-                fallbackCopyText(exprText);
-            }
-        }
-
-        function fallbackCopyText(text) {
             let textArea = document.createElement("textarea");
-            textArea.value = text;
+            textArea.value = exprText;
             
             textArea.style.position = "fixed";
-            textArea.style.top = "10px";
-            textArea.style.left = "10px";
+            textArea.style.top = "0";
+            textArea.style.left = "0";
             textArea.style.width = "2em";
             textArea.style.height = "2em";
             textArea.style.padding = "0";
@@ -359,21 +347,20 @@
             textArea.style.outline = "none";
             textArea.style.boxShadow = "none";
             textArea.style.background = "transparent";
-            textArea.style.opacity = "0.01";
             
             document.body.appendChild(textArea);
             textArea.focus();
-            textArea.select();
+            textArea.setSelectionRange(0, textArea.value.length);
             
             try {
                 let successful = document.execCommand('copy');
                 if (successful) {
                     triggerCopySuccess();
                 } else {
-                    prompt("عذراً، لم يتم النسخ تلقائياً. يمكنك نسخه يدوياً من المربع أدناه:", text);
+                    alert('فشل النسخ تلقائياً.');
                 }
             } catch (err) {
-                prompt("عذراً، لم يتم النسخ تلقائياً. يمكنك نسخه يدوياً من المربع أدناه:", text);
+                alert('حدث خطأ أثناء النسخ.');
             }
             
             document.body.removeChild(textArea);
