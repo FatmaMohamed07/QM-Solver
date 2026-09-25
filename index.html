@@ -527,7 +527,6 @@
             let html = `<div class="table-step"><h4>${title}</h4>`;
             html += `<table><tr><th>Group</th><th>Terms</th><th>Binary Representation</th><th>Used</th></tr>`;
 
-            // التعديل هنا: الترقيم يبدأ من 1 تصاعدياً بغض النظر عن عدد الـ 1s الفعلي
             let visualGroupIndex = 1;
             sortedKeys.forEach(k => {
                 groups[k].forEach((item, idx) => {
@@ -580,7 +579,8 @@
             let htmlContent = `<h3>Step-by-Step Solution (${formType}):</h3>`;
             let primeImplicants = [];
 
-            htmlContent += renderGroupedTable(currentTable, "First Column (Grouped by number of 1s)");
+            // الجدول الأول: Initially Formed Table
+            htmlContent += renderGroupedTable(currentTable, "Initially Formed Table");
 
             let iterationCount = 1;
 
@@ -631,9 +631,11 @@
                 if (nextTableMap.size === 0) break;
 
                 currentTable = Array.from(nextTableMap.values());
-                let iterationName = (iterationCount === 1) ? "Second Column (First Combination)" : (iterationCount === 2) ? "Third Column (Second Combination)" : `${iterationCount + 1}th Column`;
                 
-                htmlContent += renderGroupedTable(currentTable, iterationName);
+                // تسمية التكرارات: First Iteration, Second Iteration, Third Iteration ... إلخ
+                let iterationTitle = (iterationCount === 1) ? "First Iteration" : (iterationCount === 2) ? "Second Iteration" : `${iterationCount}th Iteration`;
+                
+                htmlContent += renderGroupedTable(currentTable, iterationTitle);
 
                 iterationCount++;
                 if (iterationCount > 15) break;
@@ -642,14 +644,12 @@
             let sortedPrimary = [...primaryTerms].sort((a,b)=>a-b);
             let selectedPIs = [];
 
-            // تحسين منطق اختيار الـ Prime Implicants لضمان عدم أخذ تيرمات زائدة واختيار الحد الأدنى الفعّال (Petrick's / Greedy Column Domination approach)
             let uncovered = new Set(sortedPrimary);
             let piCoverage = primeImplicants.map(pi => ({
                 pi: pi,
                 covers: pi.minterms.filter(m => primaryTerms.includes(m))
             }));
 
-            // تصفية الـ PIs التي تغطي الـ Essential Prime Implicants أولاً
             sortedPrimary.forEach(m => {
                 let covering = piCoverage.filter(item => item.covers.includes(m));
                 if (covering.length === 1) {
@@ -661,7 +661,6 @@
                 }
             });
 
-            // اختيار باقي الـ PIs الأكثر تغطية للمتبقي دون تكرار ضار
             while (uncovered.size > 0) {
                 let bestPI = null;
                 let maxCovered = -1;
